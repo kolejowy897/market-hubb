@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FileShop – darmowe pobrania + panel admina (index.html)</title>
+  <style>
+    :root{--bg:#0b0c10;--card:#15171c;--line:#22242a;--text:#e6e6e6;--muted:#a3a3a3;--accent:#22c55e;--accent-2:#60a5fa}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:1100px;margin:32px auto;padding:16px}
+    nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+    .brand .dot{width:10px;height:10px;border-radius:999px;background:linear-gradient(45deg,var(--accent),var(--accent-2))}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+    .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;cursor:pointer;background:#2d3140;color:#fff;font-weight:600;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+    .btn.primary{background:var(--accent);color:#062b16}
+    .btn.ghost{background:transparent;border:1px solid var(--line)}
+    .badge{background:#222b22;color:#a7f3d0;border:1px solid #274030;padding:3px 8px;border-radius:999px;font-size:12px}
+    img.avatar{width:28px;height:28px;border-radius:999px}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tab{padding:8px 12px;border-radius:999px;border:1px solid var(--line);cursor:pointer}
+    .tab.active{background:#223226;border-color:#254430}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+    .item{background:#0f1117;border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .cover{width:100%;aspect-ratio:16/9;border-radius:10px;object-fit:cover;background:#0b0f15;border:1px dashed #2a2e39}
+    .muted{color:var(--muted)} .row-spread{display:flex;align-items:center;justify-content:space-between}
+    .ext{font-family:ui-monospace,monospace;color:#c5c5c5;font-size:12px}
+    input,select{background:#0f1117;border:1px solid var(--line);border-radius:10px;color:#e6e6e6;padding:10px;width:100%}
+    form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    form .full{grid-column:1/-1}
+    h1{margin:0 0 6px;font-size:22px}
+    h2{margin:0 0 10px;font-size:18px}
+    .hint{font-size:12px;color:#9aa1ae}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <div class="brand"><span class="dot"></span><span>FileShop</span></div>
+      <div class="row">
+        <div id="userBox" class="row" style="display:none">
+          <img id="avatar" class="avatar" alt="" />
+          <span id="username" class="badge"></span>
+        </div>
+        <button id="showLogin" class="btn">Zaloguj (admin)</button>
+        <button id="logoutBtn" class="btn ghost" style="display:none">Wyloguj</button>
+      </div>
+    </nav>
+
+    <!-- TABS / FILTRY KATEGORII -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div class="tabs" id="tabs">
+          <div class="tab active" data-cat="all">Wszystko</div>
+          <div class="tab" data-cat="gra">Gra</div>
+          <div class="tab" data-cat="pliki3d">Pliki 3D</div>
+          <div class="tab" data-cat="grafiki">Grafiki</div>
+        </div>
+        <span class="hint">Darmowe pobrania • publiczny licznik</span>
+      </div>
+    </div>
+
+    <!-- SZYBKIE DODAWANIE (widoczne dla admina) -->
+    <div id="quickBar" class="card" style="display:none;margin-bottom:12px">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div>
+          <h2 style="margin:0 0 6px">Szybkie dodanie pliku</h2>
+          <p class="muted" style="margin:0">Wybierz plik i wrzuć go jednym kliknięciem. Tytuł = nazwa pliku. Kategoria = aktualna zakładka.</p>
+        </div>
+        <div class="row">
+          <input id="quickFileInput" type="file" style="display:none" accept=".obj,.mtl,.json,.zip,.png,.jpg,.jpeg,image/png,image/jpeg,application/zip" />
+          <input id="quickCoverInput" type="file" style="display:none" accept="image/png,image/jpeg" />
+          <button id="quickAddBtn" class="btn primary">Dodaj plik</button>
+          <span id="quickMsg" class="muted"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTA POZYCJI -->
+    <div class="card">
+      <h2>Lista pozycji</h2>
+      <p class="muted">Kliknij „Pobierz”, aby pobrać. Licznik rośnie publicznie.</p>
+      <div id="items" class="grid"></div>
+    </div>
+
+    <br/>
+
+    <!-- PANEL ADMINA (WIDOCZNY TYLKO DLA ADMIN_EMAIL) -->
+    <div id="adminPanel" class="card" style="display:none">
+      <h2>Panel administratora</h2>
+      <p class="muted">Dodaj pozycję: okładka (PNG/JPG/JPEG) i plik (OBJ/MTL/JSON/ZIP/PNG/JPG/JPEG). Wybierz kategorię: <strong>Gra</strong>, <strong>Pliki 3D</strong>, <strong>Grafiki</strong>.</p>
+      <form id="createForm">
+        <div>
+          <label>Nazwa pozycji</label>
+          <input id="itemTitle" type="text" placeholder="np. Paczka modeli 3D #1" required />
+        </div>
+        <div>
+          <label>Kategoria</label>
+          <select id="itemCat" required>
+            <option value="gra">Gra</option>
+            <option value="pliki3d">Pliki 3D</option>
+            <option value="grafiki">Grafiki</option>
+          </select>
+        </div>
+        <div>
+          <label>Okładka (PNG/JPG/JPEG)</label>
+          <input id="coverInput" type="file" accept="image/png,image/jpeg" required />
+        </div>
+        <div>
+          <label>Plik (OBJ/MTL/JSON/ZIP/PNG/JPG/JPEG)</label>
+          <input id="fileInput" type="file" accept=".obj,.mtl,.json,.zip,.png,.jpg,.jpeg,image/png,image/jpeg,application/zip" required />
+        </div>
+        <div class="full">
+          <label>Opis (opcjonalnie)</label>
+          <input id="itemNote" type="text" placeholder="np. Free / opis" />
+        </div>
+        <div class="full">
+          <button class="btn primary" type="submit">Dodaj pozycję</button>
+          <span id="createMsg" class="muted"></span>
+        </div>
+      </form>
+    </div>
+
+    <!-- MODAL LOGOWANIA (EMAIL/PASSWORD) -->
+    <div id="loginModal" class="card" style="display:none;margin-top:12px">
+      <h2>Logowanie administratora</h2>
+      <p class="muted">Logowanie działa przez Firebase <strong>Email/Hasło</strong> — hasło jest weryfikowane po stronie Firebase (nie w kodzie strony). Utwórz konto admina w konsoli Firebase.</p>
+      <form id="loginForm">
+        <div>
+          <label>Email (admin)</label>
+          <input id="email" type="email" placeholder="np. admin@twojadomena.pl" required />
+        </div>
+        <div>
+          <label>Hasło</label>
+          <input id="password" type="password" placeholder="np. legoo" required />
+        </div>
+        <div class="full">
+          <button class="btn primary" type="submit">Zaloguj</button>
+          <button id="hideLogin" class="btn ghost" type="button">Anuluj</button>
+          <span id="loginMsg" class="muted"></span>
+        </div>
+      </form>
+      <p class="hint">Podpowiedź: możesz stworzyć użytkownika „admin” z hasłem „legoo” w Firebase Authentication → Users, a tu wpisać jego email i hasło.</p>
+    </div>
+  </div>
+
+  <!-- Firebase (modular) -->
+  <script type="module">
+    // 1) UZUPEŁNIJ SWOIMI DANYMI Z PROJEKTU FIREBASE
+    const firebaseConfig = {
+      apiKey: "PASTE_YOURS",
+      authDomain: "PASTE_YOURS.firebaseapp.com",
+      projectId: "PASTE_YOURS",
+      storageBucket: "PASTE_YOURS.appspot.com",
+      messagingSenderId: "PASTE_YOURS",
+      appId: "PASTE_YOURS"
+    };
+    // 2) USTAW EMAIL ADMINA (Tylko ten użytkownik zobaczy panel):
+    const ADMIN_EMAIL = "admin@twojadomena.pl"; // <- PODMIEŃ na email konta które utworzysz (hasło np. "legoo")
+
+    // --- Firebase imports ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+    import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // --- UI refs ---
+    const itemsEl = document.getElementById('items');
+    const adminPanel = document.getElementById('adminPanel');
+    const loginModal = document.getElementById('loginModal');
+    const showLogin = document.getElementById('showLogin');
+    const hideLogin = document.getElementById('hideLogin');
+    const loginForm = document.getElementById('loginForm');
+    const quickBar = document.getElementById('quickBar');
+    const quickAddBtn = document.getElementById('quickAddBtn');
+    const quickFileInput = document.getElementById('quickFileInput');
+    const quickCoverInput = document.getElementById('quickCoverInput');
+    const quickMsg = document.getElementById('quickMsg');
+    const emailEl = document.getElementById('email');
+    const passwordEl = document.getElementById('password');
+    const loginMsg = document.getElementById('loginMsg');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const userBox = document.getElementById('userBox');
+    const avatar = document.getElementById('avatar');
+    const username = document.getElementById('username');
+
+    const createForm = document.getElementById('createForm');
+    const itemTitle = document.getElementById('itemTitle');
+    const itemCat = document.getElementById('itemCat');
+    const coverInput = document.getElementById('coverInput');
+    const fileInput = document.getElementById('fileInput');
+    const itemNote = document.getElementById('itemNote');
+    const createMsg = document.getElementById('createMsg');
+
+    const tabs = document.getElementById('tabs');
+    let activeCat = 'all';
+
+    // --- Tabs ---
+    tabs.addEventListener('click', (e)=>{
+      const t = e.target.closest('.tab'); if(!t) return;
+      [...tabs.children].forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      activeCat = t.dataset.cat;
+      renderList(lastItems);
+    });
+
+    // --- Auth state ---
+    onAuthStateChanged(auth, (user)=>{
+      if(user){
+        userBox.style.display = 'flex';
+        avatar.src = user.photoURL || '';
+        avatar.alt = user.email || '';
+        username.textContent = user.email;
+        logoutBtn.style.display = '';
+        showLogin.style.display = 'none';
+        adminPanel.style.display = (user.email === ADMIN_EMAIL) ? 'block' : 'none';
+        quickBar.style.display = (user.email === ADMIN_EMAIL) ? 'block' : 'none';
+      }else{
+        userBox.style.display = 'none';
+        logoutBtn.style.display = 'none';
+        showLogin.style.display = '';
+        adminPanel.style.display = 'none';
+      }
+    });
+
+    logoutBtn.addEventListener('click', async ()=>{ await signOut(auth); });
+
+    // --- Szybkie dodawanie ---
+    const PLACEHOLDER_SVG = `data:image/svg+xml;charset=UTF-8,` + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1f2937"/><stop offset="100%" stop-color="#0b0f15"/></linearGradient></defs><rect width="800" height="450" fill="url(#g)"/><g fill="#9aa1ae" font-family="Verdana" font-size="28" text-anchor="middle"><text x="400" y="225">Brak okładki</text></g></svg>');
+
+    function fileExt(n){ return (n.includes('.')? n.split('.').pop().toLowerCase(): ''); }
+    function filenameBase(n){ const i=n.lastIndexOf('.'); return i>-1? n.slice(0,i): n; }
+
+    quickAddBtn?.addEventListener('click', ()=>{ quickFileInput.click(); });
+
+    quickFileInput?.addEventListener('change', async ()=>{
+      const user = auth.currentUser;
+      if(!user || user.email !== ADMIN_EMAIL){ alert('Brak uprawnień'); return; }
+      const f = quickFileInput.files[0]; if(!f) return;
+      const cat = (activeCat==='all')? 'gra' : activeCat; // wybór wg zakładki
+      const title = filenameBase(f.name);
+      const fext = fileExt(f.name);
+      quickMsg.textContent = 'Wgrywanie...';
+      try{
+        // Utwórz dokument (miejsce na meta)
+        const docRef = await addDoc(collection(db, ITEMS), { title, category: cat, note: null, count: 0, createdAt: serverTimestamp(), createdBy: user.uid });
+        const id = docRef.id;
+
+        // Upload pliku głównego
+        const fileRef = sRef(storage, `files/${id}/${f.name}`);
+        await uploadBytes(fileRef, f);
+        const fileUrl = await getDownloadURL(fileRef);
+
+        let coverUrl;
+        if(['png','jpg','jpeg'].includes(fext)){
+          // Jeśli obraz – użyj jako okładki
+          coverUrl = fileUrl;
+        } else {
+          // Poproś o okładkę lub użyj placeholdera
+          const wantCover = confirm('Ten plik nie jest obrazem. Czy chcesz dodać okładkę (PNG/JPG/JPEG)?');
+          if(wantCover){
+            quickCoverInput.click();
+            await new Promise((resolve)=>{
+              quickCoverInput.onchange = async ()=>{
+                const c = quickCoverInput.files[0];
+                if(c){ const coverRef = sRef(storage, `covers/${id}.${fileExt(c.name)}`); await uploadBytes(coverRef, c); coverUrl = await getDownloadURL(coverRef); }
+                resolve();
+              };
+            });
+          }
+          if(!coverUrl){ coverUrl = PLACEHOLDER_SVG; }
+        }
+
+        await updateDoc(docRef, { coverUrl, fileUrl, fileName: f.name, fileExt: fext });
+        quickMsg.textContent = 'Dodano ✓';
+        quickFileInput.value = '';
+        setTimeout(()=> quickMsg.textContent = '', 1500);
+      }catch(err){ console.error(err); quickMsg.textContent = 'Błąd dodawania'; }
+    });
+
+    showLogin.addEventListener('click', ()=>{ loginModal.style.display = 'block'; });
+    hideLogin.addEventListener('click', ()=>{ loginModal.style.display = 'none'; loginMsg.textContent=''; });
+
+    loginForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      loginMsg.textContent = 'Logowanie...';
+      try{
+        await signInWithEmailAndPassword(auth, emailEl.value.trim(), passwordEl.value.trim());
+        loginMsg.textContent = 'Zalogowano ✓';
+        setTimeout(()=>{ loginModal.style.display = 'none'; loginMsg.textContent=''; }, 400);
+      }catch(err){ console.error(err); loginMsg.textContent = 'Błąd logowania'; }
+    });
+
+    // --- Firestore live list ---
+    const ITEMS = 'items';
+    let lastItems = [];
+
+    function makeItemCard(id, data){
+      if(activeCat !== 'all' && data.category !== activeCat) return null;
+      const div = document.createElement('div');
+      div.className = 'item';
+      const img = document.createElement('img'); img.className='cover'; img.alt = data.title||''; img.src = data.coverUrl||'';
+      const title = document.createElement('div'); title.innerHTML = `<strong>${data.title||'Bez nazwy'}</strong>`;
+      const note = document.createElement('div'); note.className='muted'; note.textContent = data.note||'';
+      const info = document.createElement('div'); info.className='row-spread';
+      const left = document.createElement('div'); left.className='muted'; left.innerHTML = `Pobrań: <strong>${data.count??0}</strong>`;
+      const right = document.createElement('div'); right.className='ext'; right.textContent = `.${data.fileExt||'file'}`;
+      info.appendChild(left); info.appendChild(right);
+      const btn = document.createElement('a'); btn.className='btn primary'; btn.href='#'; btn.textContent='Pobierz';
+      btn.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        try{
+          await updateDoc(doc(db, ITEMS, id), { count: (data.count||0)+1 });
+          data.count = (data.count||0)+1; left.innerHTML = `Pobrań: <strong>${data.count}</strong>`;
+          if(data.fileUrl){ window.location.href = data.fileUrl; } else alert('Brak pliku.');
+        }catch(err){ console.error(err); alert('Błąd pobrania'); }
+      });
+
+      div.appendChild(img); div.appendChild(title);
+      if(data.note) div.appendChild(note);
+      div.appendChild(info); div.appendChild(btn);
+
+      // przycisk usuń dla admina
+      onAuthStateChanged(auth, (user)=>{
+        if(user && user.email === ADMIN_EMAIL){
+          const del = document.createElement('button'); del.className='btn ghost'; del.textContent='Usuń';
+          del.addEventListener('click', async ()=>{ if(confirm('Usunąć?')) await deleteDoc(doc(db, ITEMS, id)); });
+          div.appendChild(del);
+        }
+      });
+
+      return div;
+    }
+
+    function renderList(items){
+      itemsEl.innerHTML = '';
+      items.forEach(([id, data])=>{ const card = makeItemCard(id, data); if(card) itemsEl.appendChild(card); });
+    }
+
+    const q = query(collection(db, ITEMS), orderBy('createdAt','desc'));
+    onSnapshot(q, (snap)=>{
+      const arr = []; snap.forEach(d=>arr.push([d.id,d.data()]));
+      lastItems = arr; renderList(arr);
+    });
+
+    // --- Dodawanie (admin) ---
+    const IMG_EXT = ['png','jpg','jpeg'];
+    const FILE_EXT = ['obj','mtl','json','zip','png','jpg','jpeg'];
+    const ext = (n)=> (n.includes('.')? n.split('.').pop().toLowerCase(): '');
+
+    createForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const user = auth.currentUser;
+      if(!user || user.email !== ADMIN_EMAIL){ alert('Brak uprawnień'); return; }
+      const title = itemTitle.value.trim();
+      const category = itemCat.value;
+      const cover = coverInput.files[0];
+      const file = fileInput.files[0];
+      const note = itemNote.value.trim();
+      if(!title || !cover || !file){ createMsg.textContent='Uzupełnij pola'; return; }
+      if(!IMG_EXT.includes(ext(cover.name))){ createMsg.textContent='Okładka: PNG/JPG/JPEG'; return; }
+      if(!FILE_EXT.includes(ext(file.name))){ createMsg.textContent='Plik: OBJ/MTL/JSON/ZIP/PNG/JPG/JPEG'; return; }
+
+      createMsg.textContent = 'Wgrywanie...';
+      try{
+        const docRef = await addDoc(collection(db, ITEMS), { title, category, note: note||null, count: 0, createdAt: serverTimestamp(), createdBy: user.uid });
+        const id = docRef.id;
+        const coverRef = sRef(storage, `covers/${id}.${ext(cover.name)}`);
+        const fileRef  = sRef(storage, `files/${id}/${file.name}`);
+        await uploadBytes(coverRef, cover); await uploadBytes(fileRef, file);
+        const coverUrl = await getDownloadURL(coverRef); const fileUrl = await getDownloadURL(fileRef);
+        await updateDoc(docRef, { coverUrl, fileUrl, fileName: file.name, fileExt: ext(file.name) });
+        createForm.reset(); createMsg.textContent='Dodano ✓'; setTimeout(()=>createMsg.textContent='',1500);
+      }catch(err){ console.error(err); createMsg.textContent='Błąd dodawania'; }
+    });
+  </script>
+
+  <!-- FIRESTORE & STORAGE RULES (wklej w konsoli Firebase) 
+  Firestore Rules:
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /items/{doc} {
+        allow read: if true;
+        allow create, update, delete: if request.auth != null && request.auth.token.email == "boryslaskowski12345@gmail.com"; // <- PODMIEŃ
+      }
+    }
+  }
+  Storage Rules:
+  rules_version = '2';
+  service firebase.storage {
+    match /b/{bucket}/o {
+      match /covers/{allPaths=**} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.token.email == "boryslaskowski12345@gmail.com"; // <- PODMIEŃ
+      }
+      match /files/{allPaths=**} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.token.email == "boryslaskowski12345@gmail.com"; // <- PODMIEŃ
+      }
+    }
+  }
+  -->
+</body>
+</html>
